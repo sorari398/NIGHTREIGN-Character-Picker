@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>キャラ抽選システム Ver.3.0</title>
+    <title>キャラ抽選システム Ver.3.5</title>
     <style>
         :root {
             --primary: #e94560;
@@ -38,8 +38,15 @@
 
         h1 { color: var(--primary); text-align: center; letter-spacing: 3px; margin-bottom: 1.5rem; text-transform: uppercase; }
 
-        /* 入力エリア */
-        .input-section { margin-bottom: 1rem; }
+        .discord-settings {
+            background: rgba(88, 101, 242, 0.1);
+            border: 1px dashed var(--discord);
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+        }
+        .discord-settings label { font-size: 0.75rem; color: var(--discord); font-weight: bold; display: block; margin-bottom: 5px; }
+        
         input[type="text"], input[type="password"] {
             width: 100%;
             padding: 12px;
@@ -51,18 +58,6 @@
             box-sizing: border-box;
         }
 
-        /* Discord設定エリア */
-        .discord-settings {
-            background: rgba(88, 101, 242, 0.1);
-            border: 1px dashed var(--discord);
-            padding: 10px;
-            border-radius: 10px;
-            margin-bottom: 1.5rem;
-        }
-        .discord-settings label { font-size: 0.75rem; color: var(--discord); font-weight: bold; display: block; margin-bottom: 5px; }
-        .discord-settings input { margin-bottom: 0; font-size: 0.8rem; }
-
-        /* オプション */
         .option-group {
             display: flex;
             align-items: center;
@@ -90,7 +85,6 @@
         }
         button:active { transform: translateY(3px); box-shadow: 0 1px 0 #950740; }
 
-        /* 結果表示 */
         #result { margin-top: 2rem; display: flex; flex-direction: column; gap: 12px; }
         .result-card {
             background: var(--accent);
@@ -115,8 +109,8 @@
     <h1>UNIT DISPATCH</h1>
     
     <div class="discord-settings">
-        <label>DISCORD WEBHOOK URL (Optional)</label>
-        <input type="password" id="webhookUrl" placeholder="https://discord.com/api/webhooks/..." >
+        <label>DISCORD WEBHOOK URL</label>
+        <input type="password" id="webhookUrl" placeholder="URLを貼り付け" >
     </div>
 
     <div class="input-section">
@@ -130,7 +124,7 @@
         <label for="allowDupes" style="cursor:pointer; font-weight:bold;">同一キャラの重複を許可する</label>
     </div>
 
-    <button onclick="pickCharacters()">抽選開始 & Discord送信</button>
+    <button onclick="pickCharacters()">抽選開始 & 通知</button>
 
     <div id="result"></div>
 </div>
@@ -151,9 +145,11 @@
 
     const characters = Object.keys(charData);
 
-    // Discordへ送信する関数
     async function sendToDiscord(webhookUrl, userNames, selectedList) {
         if (!webhookUrl) return;
+
+        // GitHub Pages上の画像の絶対パスを生成
+        const baseUrl = window.location.href.split('index.html')[0];
 
         const fields = userNames.map((name, i) => ({
             name: name,
@@ -166,6 +162,10 @@
                 title: "🎯 ユニット選出完了",
                 color: 0xe94560,
                 fields: fields,
+                // 1人目の画像を大きく表示
+                image: { url: baseUrl + charData[selectedList[0]] },
+                // 2人目の画像を右上に小さく表示
+                thumbnail: { url: baseUrl + charData[selectedList[1]] },
                 footer: { text: "Character Selection System" },
                 timestamp: new Date()
             }]
@@ -195,7 +195,6 @@
         ];
 
         let selectedList = [];
-
         if (allowDupes) {
             for (let i = 0; i < 3; i++) {
                 selectedList.push(characters[Math.floor(Math.random() * characters.length)]);
@@ -205,7 +204,6 @@
             selectedList = shuffled.slice(0, 3);
         }
 
-        // 表示処理
         selectedList.forEach((charName, index) => {
             setTimeout(() => {
                 const card = document.createElement('div');
@@ -225,7 +223,6 @@
             }, index * 200);
         });
 
-        // Discord送信実行
         sendToDiscord(webhookUrl, userNames, selectedList);
     }
 </script>
