@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>キャラ抽選システム Ver.3.0</title>
+    <title>キャラ抽選システム 画像生成版</title>
     <style>
         :root {
             --primary: #e94560;
@@ -34,12 +34,21 @@
             width: 100%;
             max-width: 480px;
             border: 1px solid rgba(233, 69, 96, 0.3);
+            text-align: center;
         }
 
-        h1 { color: var(--primary); text-align: center; letter-spacing: 3px; margin-bottom: 1.5rem; text-transform: uppercase; }
+        h1 { color: var(--primary); letter-spacing: 3px; margin-bottom: 1.5rem; text-transform: uppercase; }
 
-        /* 入力エリア */
-        .input-section { margin-bottom: 1rem; }
+        .discord-settings {
+            background: rgba(88, 101, 242, 0.1);
+            border: 1px dashed var(--discord);
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+            text-align: left;
+        }
+        .discord-settings label { font-size: 0.75rem; color: var(--discord); font-weight: bold; display: block; margin-bottom: 5px; }
+        
         input[type="text"], input[type="password"] {
             width: 100%;
             padding: 12px;
@@ -51,18 +60,6 @@
             box-sizing: border-box;
         }
 
-        /* Discord設定エリア */
-        .discord-settings {
-            background: rgba(88, 101, 242, 0.1);
-            border: 1px dashed var(--discord);
-            padding: 10px;
-            border-radius: 10px;
-            margin-bottom: 1.5rem;
-        }
-        .discord-settings label { font-size: 0.75rem; color: var(--discord); font-weight: bold; display: block; margin-bottom: 5px; }
-        .discord-settings input { margin-bottom: 0; font-size: 0.8rem; }
-
-        /* オプション */
         .option-group {
             display: flex;
             align-items: center;
@@ -73,7 +70,7 @@
             border-radius: 12px;
             cursor: pointer;
         }
-        .option-group input { margin-right: 12px; width: 18px; height: 18px; cursor: pointer; }
+        .option-group input { margin-right: 12px; width: 18px; height: 18px; }
         
         button {
             background-color: var(--primary);
@@ -90,23 +87,17 @@
         }
         button:active { transform: translateY(3px); box-shadow: 0 1px 0 #950740; }
 
-        /* 結果表示 */
-        #result { margin-top: 2rem; display: flex; flex-direction: column; gap: 12px; }
-        .result-card {
-            background: var(--accent);
-            border-radius: 15px;
-            display: flex;
-            align-items: center;
-            padding: 12px;
-            animation: slideUp 0.3s ease-out forwards;
-            border-left: 5px solid var(--primary);
+        /* キャンバス（非表示で処理） */
+        #hiddenCanvas { display: none; }
+
+        #result-preview {
+            margin-top: 1.5rem;
+            border-radius: 10px;
+            max-width: 100%;
+            border: 2px solid var(--accent);
+            display: none;
         }
-        @keyframes slideUp { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        .char-img { width: 65px; height: 65px; border-radius: 8px; object-fit: cover; margin-right: 15px; background: #222; }
-        .info { flex-grow: 1; }
-        .user-label { font-size: 0.7rem; color: #95a5a6; display: block; }
-        .char-name { font-size: 1.2rem; font-weight: bold; color: #fff; }
-        .duplicate-badge { background: #ff9f43; color: #000; font-size: 0.6rem; padding: 2px 6px; border-radius: 4px; margin-left: 8px; }
+        .status-msg { font-size: 0.8rem; color: #95a5a6; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -115,8 +106,8 @@
     <h1>UNIT DISPATCH</h1>
     
     <div class="discord-settings">
-        <label>DISCORD WEBHOOK URL (Optional)</label>
-        <input type="password" id="webhookUrl" placeholder="https://discord.com/api/webhooks/..." >
+        <label>DISCORD WEBHOOK URL</label>
+        <input type="password" id="webhookUrl" placeholder="URLを貼り付け" >
     </div>
 
     <div class="input-section">
@@ -130,9 +121,11 @@
         <label for="allowDupes" style="cursor:pointer; font-weight:bold;">同一キャラの重複を許可する</label>
     </div>
 
-    <button onclick="pickCharacters()">抽選開始 & Discord送信</button>
+    <button id="drawBtn" onclick="executeLottery()">抽選開始 & 画像送信</button>
 
-    <div id="result"></div>
+    <div id="status" class="status-msg"></div>
+    <canvas id="hiddenCanvas" width="600" height="400"></canvas>
+    <img id="result-preview" alt="抽選結果プレビュー">
 </div>
 
 <script>
@@ -148,46 +141,16 @@
         "学者": "scholar.jpg",
         "葬儀屋": "undertaker.jpg"
     };
-
     const characters = Object.keys(charData);
 
-    // Discordへ送信する関数
-    async function sendToDiscord(webhookUrl, userNames, selectedList) {
-        if (!webhookUrl) return;
+    async function executeLottery() {
+        const btn = document.getElementById('drawBtn');
+        const status = document.getElementById('status');
+        btn.disabled = true;
+        status.innerText = "画像を生成中...";
 
-        const fields = userNames.map((name, i) => ({
-            name: name,
-            value: `➡ **${selectedList[i]}**`,
-            inline: true
-        }));
-
-        const payload = {
-            embeds: [{
-                title: "🎯 ユニット選出完了",
-                color: 0xe94560,
-                fields: fields,
-                footer: { text: "Character Selection System" },
-                timestamp: new Date()
-            }]
-        };
-
-        try {
-            await fetch(webhookUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-        } catch (e) {
-            console.error("Discord送信エラー:", e);
-        }
-    }
-
-    function pickCharacters() {
-        const resultDiv = document.getElementById('result');
         const allowDupes = document.getElementById('allowDupes').checked;
         const webhookUrl = document.getElementById('webhookUrl').value;
-        resultDiv.innerHTML = ''; 
-
         const userNames = [
             document.getElementById('user1').value || "Player 1",
             document.getElementById('user2').value || "Player 2",
@@ -195,38 +158,93 @@
         ];
 
         let selectedList = [];
-
         if (allowDupes) {
-            for (let i = 0; i < 3; i++) {
-                selectedList.push(characters[Math.floor(Math.random() * characters.length)]);
-            }
+            for (let i = 0; i < 3; i++) selectedList.push(characters[Math.floor(Math.random() * characters.length)]);
         } else {
-            const shuffled = [...characters].sort(() => 0.5 - Math.random());
-            selectedList = shuffled.slice(0, 3);
+            selectedList = [...characters].sort(() => 0.5 - Math.random()).slice(0, 3);
         }
 
-        // 表示処理
-        selectedList.forEach((charName, index) => {
-            setTimeout(() => {
-                const card = document.createElement('div');
-                card.className = 'result-card';
-                const isDuplicate = selectedList.filter(x => x === charName).length > 1;
-                const dupeTag = (allowDupes && isDuplicate) ? '<span class="duplicate-badge">DUPLICATE</span>' : '';
+        try {
+            const canvas = document.getElementById('hiddenCanvas');
+            const ctx = canvas.getContext('2d');
 
-                card.innerHTML = `
-                    <img src="${charData[charName]}" class="char-img" 
-                         onerror="this.src='https://via.placeholder.com/65/222/e94560?text=${charName.substring(0,1)}'">
-                    <div class="info">
-                        <span class="user-label">${userNames[index]}</span>
-                        <span class="char-name">${charName}${dupeTag}</span>
-                    </div>
-                `;
-                resultDiv.appendChild(card);
-            }, index * 200);
-        });
+            // 背景描画
+            ctx.fillStyle = '#16213e';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = '#e94560';
+            ctx.lineWidth = 10;
+            ctx.strokeRect(0, 0, canvas.width, canvas.height);
 
-        // Discord送信実行
-        sendToDiscord(webhookUrl, userNames, selectedList);
+            // キャラクター描画
+            for (let i = 0; i < 3; i++) {
+                const charName = selectedList[i];
+                const img = new Image();
+                img.crossOrigin = "anonymous";
+                img.src = charData[charName];
+
+                await new Promise(resolve => {
+                    img.onload = () => {
+                        const x = 40 + (i * 185);
+                        // 画像の枠
+                        ctx.strokeStyle = '#0f3460';
+                        ctx.strokeRect(x, 80, 150, 150);
+                        ctx.drawImage(img, x, 80, 150, 150);
+                        
+                        // テキスト描画
+                        ctx.fillStyle = '#95a5a6';
+                        ctx.font = 'bold 16px Arial';
+                        ctx.fillText(userNames[i], x, 260);
+                        
+                        ctx.fillStyle = '#ffffff';
+                        ctx.font = 'bold 24px Arial';
+                        ctx.fillText(charName, x, 295);
+                        resolve();
+                    };
+                    img.onerror = () => {
+                        // 画像がない場合の代用描画
+                        const x = 40 + (i * 185);
+                        ctx.fillStyle = '#333';
+                        ctx.fillRect(x, 80, 150, 150);
+                        ctx.fillStyle = '#fff';
+                        ctx.fillText("No Image", x + 35, 160);
+                        resolve();
+                    };
+                });
+            }
+
+            // タイトル
+            ctx.fillStyle = '#e94560';
+            ctx.font = 'bold 30px Arial';
+            ctx.fillText("UNIT DISPATCH RESULT", 140, 45);
+
+            // プレビュー表示
+            const preview = document.getElementById('result-preview');
+            preview.src = canvas.toDataURL('image/png');
+            preview.style.display = 'block';
+
+            // Discord送信
+            if (webhookUrl) {
+                status.innerText = "Discordに送信中...";
+                canvas.toBlob(async (blob) => {
+                    const formData = new FormData();
+                    formData.append('file', blob, 'result.png');
+                    formData.append('payload_json', JSON.stringify({
+                        content: "🎯 **新しいユニット選出結果が届きました**"
+                    }));
+
+                    await fetch(webhookUrl, { method: 'POST', body: formData });
+                    status.innerText = "送信完了！";
+                });
+            } else {
+                status.innerText = "画像生成完了（Webhook未設定）";
+            }
+
+        } catch (err) {
+            console.error(err);
+            status.innerText = "エラーが発生しました";
+        } finally {
+            btn.disabled = false;
+        }
     }
 </script>
 
