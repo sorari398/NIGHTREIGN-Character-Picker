@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>キャラ抽選システム Ver.2.0</title>
+    <style>
+        :root {
+            --primary: #e94560;
+            --bg: #1a1a2e;
+            --card: #16213e;
+            --accent: #0f3460;
+            --text: #ffffff;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            background: var(--card);
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+            width: 100%;
+            max-width: 480px;
+            border: 1px solid rgba(233, 69, 96, 0.3);
+        }
+
+        h1 {
+            color: var(--primary);
+            text-align: center;
+            letter-spacing: 3px;
+            margin-bottom: 1.5rem;
+            text-transform: uppercase;
+        }
+
+        .input-section { margin-bottom: 1.5rem; }
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 10px;
+            background: var(--accent);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            color: #fff;
+            box-sizing: border-box;
+        }
+
+        /* スイッチ風チェックボックス */
+        .option-group {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+            padding: 15px;
+            background: rgba(15, 52, 96, 0.8);
+            border-radius: 12px;
+            border: 1px solid var(--primary);
+            cursor: pointer;
+        }
+        .option-group input {
+            width: 20px;
+            height: 20px;
+            margin-right: 12px;
+            cursor: pointer;
+        }
+        .option-group label {
+            cursor: pointer;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 18px;
+            font-size: 1.1rem;
+            border-radius: 50px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: bold;
+            box-shadow: 0 4px 0 #950740;
+            transition: 0.1s;
+        }
+        button:active { transform: translateY(3px); box-shadow: 0 1px 0 #950740; }
+
+        #result { margin-top: 2rem; display: flex; flex-direction: column; gap: 12px; }
+        .result-card {
+            background: var(--accent);
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            animation: slideUp 0.3s ease-out forwards;
+            border-left: 5px solid var(--primary);
+        }
+        @keyframes slideUp {
+            from { transform: translateY(10px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .char-img {
+            width: 65px;
+            height: 65px;
+            border-radius: 8px;
+            object-fit: cover;
+            margin-right: 15px;
+            background: #222;
+        }
+        .info { flex-grow: 1; }
+        .user-label { font-size: 0.7rem; color: #95a5a6; display: block; }
+        .char-name { font-size: 1.2rem; font-weight: bold; color: #fff; }
+        
+        /* 重複が発生した時のバッジ */
+        .duplicate-badge {
+            background: #ff9f43;
+            color: #000;
+            font-size: 0.6rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>UNIT DISPATCH</h1>
+    
+    <div class="input-section">
+        <input type="text" id="user1" placeholder="Operator 1" value="Player 1">
+        <input type="text" id="user2" placeholder="Operator 2" value="Player 2">
+        <input type="text" id="user3" placeholder="Operator 3" value="Player 3">
+    </div>
+
+    <div class="option-group" onclick="document.getElementById('allowDupes').click(); event.stopPropagation();">
+        <input type="checkbox" id="allowDupes" onclick="event.stopPropagation();">
+        <label for="allowDupes">同一キャラの重複を許可する</label>
+    </div>
+
+    <button onclick="pickCharacters()">抽選開始</button>
+
+    <div id="result"></div>
+</div>
+
+<script>
+    const charData = {
+        "追跡者": "stalker.jpg",
+        "守護者": "guardian.jpg",
+        "鉄の目": "iron_eye.jpg",
+        "レディ": "lady.jpg",
+        "無頼漢": "rogue.jpg",
+        "復讐者": "avenger.jpg",
+        "隠者": "hermit.jpg",
+        "執行者": "executor.jpg",
+        "学者": "scholar.jpg",
+        "葬儀屋": "undertaker.jpg"
+    };
+
+    const characters = Object.keys(charData);
+
+    function pickCharacters() {
+        const resultDiv = document.getElementById('result');
+        const allowDupes = document.getElementById('allowDupes').checked;
+        resultDiv.innerHTML = ''; 
+
+        const userNames = [
+            document.getElementById('user1').value || "Player 1",
+            document.getElementById('user2').value || "Player 2",
+            document.getElementById('user3').value || "Player 3"
+        ];
+
+        let selectedList = [];
+
+        if (allowDupes) {
+            // 【重複あり】
+            // 毎回、全リスト（10人）の中から完全にランダムに1人選ぶ、を3回繰り返す
+            for (let i = 0; i < 3; i++) {
+                const randomName = characters[Math.floor(Math.random() * characters.length)];
+                selectedList.push(randomName);
+            }
+        } else {
+            // 【重複なし】
+            const shuffled = [...characters].sort(() => 0.5 - Math.random());
+            selectedList = shuffled.slice(0, 3);
+        }
+
+        // 表示処理
+        selectedList.forEach((charName, index) => {
+            setTimeout(() => {
+                const imgFile = charData[charName];
+                const card = document.createElement('div');
+                card.className = 'result-card';
+                
+                // 重複があるか確認（視覚的なデバッグ用）
+                const isDuplicate = selectedList.filter(x => x === charName).length > 1;
+                const dupeTag = (allowDupes && isDuplicate) ? '<span class="duplicate-badge">DUPLICATE</span>' : '';
+
+                card.innerHTML = `
+                    <img src="${imgFile}" class="char-img" 
+                         onerror="this.src='https://via.placeholder.com/65/222/e94560?text=${charName.substring(0,1)}'">
+                    <div class="info">
+                        <span class="user-label">${userNames[index]}</span>
+                        <span class="char-name">${charName}${dupeTag}</span>
+                    </div>
+                `;
+                resultDiv.appendChild(card);
+            }, index * 200);
+        });
+    }
+</script>
+
+</body>
+</html>
