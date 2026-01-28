@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>キャラ抽選システム 画像生成版</title>
+    <title>ナイトレイン ランダム夜渡り</title>
     <style>
         :root {
             --primary: #e94560;
@@ -37,7 +37,8 @@
             text-align: center;
         }
 
-        h1 { color: var(--primary); letter-spacing: 3px; margin-bottom: 1.5rem; text-transform: uppercase; }
+        h1 { color: var(--primary); letter-spacing: 2px; margin-bottom: 0.5rem; font-size: 1.5rem; }
+        .sub-h1 { color: #95a5a6; font-size: 0.9rem; margin-bottom: 1.5rem; }
 
         .discord-settings {
             background: rgba(88, 101, 242, 0.1);
@@ -87,7 +88,6 @@
         }
         button:active { transform: translateY(3px); box-shadow: 0 1px 0 #950740; }
 
-        /* キャンバス（非表示で処理） */
         #hiddenCanvas { display: none; }
 
         #result-preview {
@@ -103,7 +103,8 @@
 <body>
 
 <div class="container">
-    <h1>UNIT DISPATCH</h1>
+    <h1>ナイトレイン ランダム夜渡り</h1>
+    <div class="sub-h1">夜渡りをランダムでピックします</div>
     
     <div class="discord-settings">
         <label>DISCORD WEBHOOK URL</label>
@@ -147,7 +148,7 @@
         const btn = document.getElementById('drawBtn');
         const status = document.getElementById('status');
         btn.disabled = true;
-        status.innerText = "画像を生成中...";
+        status.innerText = "運命を確定中...";
 
         const allowDupes = document.getElementById('allowDupes').checked;
         const webhookUrl = document.getElementById('webhookUrl').value;
@@ -168,14 +169,12 @@
             const canvas = document.getElementById('hiddenCanvas');
             const ctx = canvas.getContext('2d');
 
-            // 背景描画
             ctx.fillStyle = '#16213e';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.strokeStyle = '#e94560';
             ctx.lineWidth = 10;
             ctx.strokeRect(0, 0, canvas.width, canvas.height);
 
-            // キャラクター描画
             for (let i = 0; i < 3; i++) {
                 const charName = selectedList[i];
                 const img = new Image();
@@ -185,63 +184,59 @@
                 await new Promise(resolve => {
                     img.onload = () => {
                         const x = 40 + (i * 185);
-                        // 画像の枠
                         ctx.strokeStyle = '#0f3460';
                         ctx.strokeRect(x, 80, 150, 150);
                         ctx.drawImage(img, x, 80, 150, 150);
                         
-                        // テキスト描画
                         ctx.fillStyle = '#95a5a6';
-                        ctx.font = 'bold 16px Arial';
+                        ctx.font = 'bold 16px sans-serif';
                         ctx.fillText(userNames[i], x, 260);
                         
                         ctx.fillStyle = '#ffffff';
-                        ctx.font = 'bold 24px Arial';
+                        ctx.font = 'bold 24px sans-serif';
                         ctx.fillText(charName, x, 295);
                         resolve();
                     };
                     img.onerror = () => {
-                        // 画像がない場合の代用描画
                         const x = 40 + (i * 185);
                         ctx.fillStyle = '#333';
                         ctx.fillRect(x, 80, 150, 150);
                         ctx.fillStyle = '#fff';
-                        ctx.fillText("No Image", x + 35, 160);
+                        ctx.fillText("画像なし", x + 35, 160);
                         resolve();
                     };
                 });
             }
 
-            // タイトル
             ctx.fillStyle = '#e94560';
-            ctx.font = 'bold 30px Arial';
-            ctx.fillText("UNIT DISPATCH RESULT", 140, 45);
+            ctx.font = 'bold 32px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText("選択せよ", canvas.width / 2, 50);
+            ctx.textAlign = 'left';
 
-            // プレビュー表示
             const preview = document.getElementById('result-preview');
             preview.src = canvas.toDataURL('image/png');
             preview.style.display = 'block';
 
-            // Discord送信
             if (webhookUrl) {
-                status.innerText = "Discordに送信中...";
+                status.innerText = "Discordに報告中...";
                 canvas.toBlob(async (blob) => {
                     const formData = new FormData();
                     formData.append('file', blob, 'result.png');
                     formData.append('payload_json', JSON.stringify({
-                        content: "🎯 **新しいユニット選出結果が届きました**"
+                        content: "選ばれた夜渡りはコイツだ！"
                     }));
 
                     await fetch(webhookUrl, { method: 'POST', body: formData });
-                    status.innerText = "送信完了！";
+                    status.innerText = "送信完了";
                 });
             } else {
-                status.innerText = "画像生成完了（Webhook未設定）";
+                status.innerText = "生成完了";
             }
 
         } catch (err) {
             console.error(err);
-            status.innerText = "エラーが発生しました";
+            status.innerText = "通信エラー";
         } finally {
             btn.disabled = false;
         }
