@@ -113,9 +113,9 @@
     </div>
 
     <div class="input-section">
-        <input type="text" id="user1" placeholder="Operator 1" value="Player 1">
-        <input type="text" id="user2" placeholder="Operator 2" value="Player 2">
-        <input type="text" id="user3" placeholder="Operator 3" value="Player 3">
+        <input type="text" id="player1" placeholder="Player 1" value="">
+        <input type="text" id="player2" placeholder="Player 2" value="">
+        <input type="text" id="player3" placeholder="Player 3" value="">
     </div>
 
     <div class="option-group" onclick="document.getElementById('allowDupes').click();">
@@ -159,10 +159,10 @@
         const allowDupes = document.getElementById('allowDupes').checked;
         const spawnBoss = document.getElementById('spawnBoss').checked;
         const webhookUrl = document.getElementById('webhookUrl').value;
-        const userNames = [
-            document.getElementById('user1').value || "Player 1",
-            document.getElementById('user2').value || "Player 2",
-            document.getElementById('user3').value || "Player 3"
+        const playerNames = [
+            document.getElementById('player1').value.trim() || "Player 1",
+            document.getElementById('player2').value.trim() || "Player 2",
+            document.getElementById('player3').value.trim() || "Player 3"
         ];
 
         let selectedList = [];
@@ -203,7 +203,7 @@
             for (let i = 0; i < 3; i++) {
                 const charName = selectedList[i];
                 const x = 40 + (i * 185);
-                await drawCard(ctx, charName, charData[charName], userNames[i], x, 85, 150);
+                await drawCard(ctx, charName, charData[charName], playerNames[i], x, 85, 150);
             }
 
             if (selectedBoss) {
@@ -254,7 +254,7 @@
         }
     }
 
-    async function drawCard(ctx, name, file, subText, x, y, size) {
+    async function drawCard(ctx, name, file, playerName, x, y, size) {
         const img = new Image();
         img.crossOrigin = "anonymous";
         img.src = file;
@@ -263,13 +263,10 @@
                 ctx.strokeStyle = '#0f3460'; ctx.lineWidth = 2;
                 ctx.strokeRect(x, y, size, size);
                 ctx.drawImage(img, x, y, size, size);
-                
                 ctx.textAlign = 'left';
                 ctx.fillStyle = '#95a5a6';
                 ctx.font = 'bold 14px sans-serif';
-                ctx.fillText(subText, x, y + size + 25);
-                
-                // キャラ名を24pxに変更
+                ctx.fillText(playerName, x, y + size + 25);
                 ctx.fillStyle = '#ffffff';
                 ctx.font = 'bold 24px sans-serif';
                 ctx.fillText(name, x, y + size + 58);
@@ -280,11 +277,10 @@
                 ctx.fillStyle = '#fff'; ctx.textAlign = 'center';
                 ctx.font = 'bold 16px sans-serif';
                 ctx.fillText("画像なし", x + size/2, y + size/2);
-                
                 ctx.textAlign = 'left';
                 ctx.fillStyle = '#95a5a6';
                 ctx.font = 'bold 14px sans-serif';
-                ctx.fillText(subText, x, y + size + 25);
+                ctx.fillText(playerName, x, y + size + 25);
                 ctx.fillStyle = '#ffffff';
                 ctx.font = 'bold 24px sans-serif';
                 ctx.fillText(name, x, y + size + 58);
